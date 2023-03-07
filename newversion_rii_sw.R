@@ -1,17 +1,110 @@
 
+# Load libraries ----------------------------------------------------------
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(stringr)
+library(purrr)
+library(broom)
+library(glue)
+
+# Load data ---------------------------------------------------------------
+# This data has a row for each IMD decile. The first column is the IMD decile
+# number, the second column is the total GP list size for that decile.
+# Each of the other columns is the total activity for that metric and decile.
+# In this example there are 33 metrics.
+#
+# This test dataset has been created using a random number generator with data
+# items in a range similar to the original dataset.
+#
+
+activity_type_decile <-
+  readRDS("data/Activity_by_type_decile_stg1.RDS") |>
+  clean_names()
+
+# Metrics 2 - 9 listed as use GP list size 16+ as denominator
+# else uses CHD prevalence
+by_list_total <- c(
+  "02", "05",
+  "06", "07",
+  "08", "09"
+)
+
+# Produces a string to be used in an if(else) in later code to match against
+# the metric numbers listed in by_list_total
+by_list_regex <- glue("^metric({paste(by_list_total, collapse = '|')})_total$")
+
+# Data manipulation code --------------------------------------------------
+activity_long <- activity_type_decile |>
+  pivot_longer(
+    cols = c(starts_with("metric"), -metric01_total),
+    names_to = "metric_name",
+    values_to = "metric_total"
+  ) |>
+  mutate(
+    total_column = ifelse(
+      str_detect(metric_name, by_list_regex),
+      list_size_total,
+      metric01_total
+    ),
+    total_ratio = metric_total / total_column * 1000
+  ) |>
+  select(
+    quantile = gp_im_dquantile,
+    metric01_total,
+    metric_name,
+    metric_total,
+    total_ratio
+  ) |>
+  mutate(activity = (total_ratio * metric01_total / 1000)) |>
+  group_by(metric_name) |>
+  # arrange() required for first() and last() functions to calculate
+  # most_depr_value and least_depr_value
+  arrange(
+    metric_name,
+    quantile
+  ) |>
+  mutate(
+    total_activity = sum(activity),
+    prevalence = sum(metric01_total),
+    overall_value = total_activity / prevalence * 1000,
+    population = metric01_total,
+    most_depr_value = first(total_ratio),
+    least_depr_value = last(total_ratio),
+    total_pop = sum(population),
+    proportion_pop = population / total_pop,
+    abs_range = most_depr_value - least_depr_value, # not used in this particular code
+    rel_range = most_depr_value / least_depr_value
+  ) |>
+  ungroup() |>
+  ############################################### .
+  ## Population attributable risk (PAR) ----
+############################################### .
+# Calculation PAR
+# Formula here: https://pdfs.semanticscholar.org/14e0/c5ba25a4fdc87953771a91ec2f7214b2f00d.pdf
+# https://fhop.ucsf.edu/sites/fhop.ucsf.edu/files/wysiwyg/pg_apxIIIB.pdf
+mutate(
+  par_rr = (total_ratio / least_depr_value - 1) * proportion_pop,
+  par = sum(par_rr) / (sum(par_rr) + 1) * 100
+) |>
+  select(-par_rr)
+
+
+#Re-worked confidence intervals from SW-----------------------------------
 # set up data frame for model
-model_df_all_variables <- test_data_ICB %>%
-  group_by(variable) %>%
-  dplyr::mutate(cumulative_proprtion_pop = cumsum(proportion_pop)) %>%
+model_df_all_variables <- activity_long %>%
+  group_by(metric_name) %>%
+  dplyr::mutate(cumulative_proportion_pop = cumsum(proportion_pop)) %>%
   dplyr::mutate(adj_IMD_decile = case_when(quantile == 1 ~ 0.5*proportion_pop,
-                                           quantile != 1 ~ lag(cumulative_proprtion_pop) + 0.5*proportion_pop)) %>%
-  select(variable, adj_IMD_decile, value, population)
+                                           quantile != 1 ~ lag(cumulative_proportion_pop) + 0.5*proportion_pop)) %>%
+  select(metric_name, adj_IMD_decile, total_ratio, population)
+# select(variable, adj_IMD_decile, value, population)
 
 # create variable to loop over
-variables <- levels(test_data_ICB$variable)
+variables <- levels(activity_long$metric_name)
 
 # create table to hold intermediate results of sii calculations
-sii_staging_ICB <- data.frame(variable = character(),
+sii_staging <- data.frame(variable = character(),
                               pred0 = numeric(),
                               pred0se = numeric(),
                               pred1 = numeric(),
@@ -25,9 +118,9 @@ for (i in variables)
   
   # create subset of med data just for selected variable
   mod_df <- model_df_all_variables %>%
-    dplyr::filter(variable == i) %>%
+    dplyr::filter(metric_name == i) %>%
     ungroup() %>%
-    select(-variable)
+    select(-metric_name)
   
   # run linear regression of value against IMD weighting for population
   mod <- lm(value ~ adj_IMD_decile,
@@ -47,7 +140,7 @@ for (i in variables)
                            pred1se = predict(mod, se.fit = TRUE, newdata = pred_df)$se.fit[2])
   
   # store results into sii staging df
-  sii_staging_ICB <- sii_staging_ICB %>%
+  sii_staging <- sii_staging %>%
     bind_rows(mod_results)
   
 }
