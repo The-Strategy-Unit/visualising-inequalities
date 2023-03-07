@@ -101,7 +101,7 @@ model_df_all_variables <- activity_long %>%
 # select(variable, adj_IMD_decile, value, population)
 
 # create variable to loop over
-variables <- levels(activity_long$metric_name)
+variables <- levels(as.factor(activity_long$metric_name))
 
 # create table to hold intermediate results of sii calculations
 sii_staging <- data.frame(variable = character(),
@@ -111,7 +111,7 @@ sii_staging <- data.frame(variable = character(),
                               pred1se = numeric())
 
 
-# calculate intermediate sii results for each variable in test_data
+# calculate intermediate sii results for each variable in activity_long
 for (i in variables)
   
 {
@@ -123,13 +123,13 @@ for (i in variables)
     select(-metric_name)
   
   # run linear regression of value against IMD weighting for population
-  mod <- lm(value ~ adj_IMD_decile,
+  mod <- lm(total_ratio ~ adj_IMD_decile,
             weights = population,
             data = mod_df)
   
   # create dataframe to run predictions'
   pred_df <- data.frame(adj_IMD_decile = c(0, 1),
-                        value = c(NA_real_, NA_real_),
+                        total_ratio = c(NA_real_, NA_real_),
                         population = c(NA_real_, NA_real_))
   
   # predict value at either end of IMD spectrum using model
@@ -147,30 +147,23 @@ for (i in variables)
 
 
 
-
-#sii_staging <- sii_staging_new2
-#test_data_initial <- readRDS(file = "test_data_new.RDS")
-
-
-# BELOW IS getSII_results
-
-# set the confidence interval for sii and rii
-# change this as required
-# confLevel <- 0.95
+#set the confidence interval for sii and rii
+#change this as required
+confLevel <- 0.95
 
 
 # calculate sii and CIs
 # note se of difference of two variables is the square root of the summed squares of the se's of these variables
-sii_results <- sii_staging_ICB %>% 
+sii_results <- sii_staging %>% 
   dplyr::mutate(sii = pred0 - pred1,
                 siiSe = (pred0se ^ 2 + pred1se ^ 2) ^ 0.5) %>% 
   dplyr::mutate(siiLcl95 = sii + qnorm(p = (1-confLevel)/2, lower.tail = TRUE)*siiSe,
                 siiUcl95 = sii + qnorm(p = (1+confLevel)/2, lower.tail = TRUE)*siiSe) %>% 
   select(-siiSe, -pred0, - pred1, -pred0se, -pred1se) 
 
-# BELOW IS update_test_data
+# BELOW IS update_activity_long
 
-test_data <- test_data_ICB %>% 
+test_data <- activity_long %>% 
   left_join(sii_results, by = 'variable') %>% 
   dplyr::mutate(rii = sii / overall_value,
                 riiLcl95 = siiLcl95 / overall_value,
