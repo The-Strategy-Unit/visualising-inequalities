@@ -18,7 +18,7 @@ library(glue)
 #
 
 activity_type_decile <-
-  readRDS("data/activity_by_type_decile_stg1_testdata.rds") |>
+  readRDS("data/Activity_by_type_decile_stg1.RDS") |>
   clean_names()
 
 # Metrics 2 - 9 listed as use GP list size 16+ as denominator
