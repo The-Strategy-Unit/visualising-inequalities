@@ -154,17 +154,17 @@ confLevel <- 0.95
 
 # calculate sii and CIs
 # note se of difference of two variables is the square root of the summed squares of the se's of these variables
-sii_results <- sii_staging %>% 
+sii_results <- sii_staging |> 
   dplyr::mutate(sii = pred0 - pred1,
-                siiSe = (pred0se ^ 2 + pred1se ^ 2) ^ 0.5) %>% 
+                siiSe = (pred0se ^ 2 + pred1se ^ 2) ^ 0.5) |> 
   dplyr::mutate(siiLcl95 = sii + qnorm(p = (1-confLevel)/2, lower.tail = TRUE)*siiSe,
-                siiUcl95 = sii + qnorm(p = (1+confLevel)/2, lower.tail = TRUE)*siiSe) %>% 
+                siiUcl95 = sii + qnorm(p = (1+confLevel)/2, lower.tail = TRUE)*siiSe) |> 
   select(-siiSe, -pred0, - pred1, -pred0se, -pred1se) 
 
 # BELOW IS update_activity_long
 
-test_data <- activity_long %>% 
-  left_join(sii_results, by = 'metric_name') %>% 
+test_data <- activity_long |> 
+  left_join(sii_results, by = 'metric_name') |> 
   dplyr::mutate(rii = sii / overall_value,
                 riiLcl95 = siiLcl95 / overall_value,
                 riiUcl95 = siiUcl95 / overall_value)
