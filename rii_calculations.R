@@ -15,7 +15,7 @@ library(glue)
 # In this example there are 33 metrics.
 #
 # This test dataset has been created using a random number generator with data
-# items in a range similar to the original dataset.
+# items in a pattern, range and with an average similar to the original dataset.
 #
 
 activity_type_decile <-
@@ -182,4 +182,4 @@ sii_table<-test_data |>
   arrange()
 
 # Save out the results to a csv
-# write.csv(sii_table,"data/sii_table.csv")
+write.csv(sii_table,"data/sii_table.csv")
