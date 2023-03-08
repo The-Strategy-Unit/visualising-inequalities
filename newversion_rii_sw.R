@@ -90,7 +90,6 @@ mutate(
   select(-par_rr)
 
 
-#Re-worked confidence intervals from SW-----------------------------------
 # set up data frame for model
 model_df_all_variables <- activity_long |>
   group_by(metric_name) |>
@@ -98,7 +97,7 @@ model_df_all_variables <- activity_long |>
   dplyr::mutate(adj_IMD_decile = case_when(quantile == 1 ~ 0.5*proportion_pop,
                                            quantile != 1 ~ lag(cumulative_proportion_pop) + 0.5*proportion_pop)) |>
   select(metric_name, adj_IMD_decile, total_ratio, population)
-# select(variable, adj_IMD_decile, value, population)
+
 
 # create variable to loop over
 variables <- levels(as.factor(activity_long$metric_name))
@@ -122,12 +121,12 @@ for (i in variables)
     ungroup() |>
     select(-metric_name)
   
-  # run linear regression of value against IMD weighting for population
+  # run linear regression of total_ratio(value) against IMD weighting for population
   mod <- lm(total_ratio ~ adj_IMD_decile,
             weights = population,
             data = mod_df)
   
-  # create dataframe to run predictions'
+  # create dataframe to run predictions
   pred_df <- data.frame(adj_IMD_decile = c(0, 1),
                         total_ratio = c(NA_real_, NA_real_),
                         population = c(NA_real_, NA_real_))
@@ -161,14 +160,12 @@ sii_results <- sii_staging |>
                 siiUcl95 = sii + qnorm(p = (1+confLevel)/2, lower.tail = TRUE)*siiSe) |> 
   select(-siiSe, -pred0, - pred1, -pred0se, -pred1se) 
 
-# BELOW IS update_activity_long
-
+# join to activity data
 test_data <- activity_long |> 
   left_join(sii_results, by = 'metric_name') |> 
   dplyr::mutate(rii = sii / overall_value,
                 riiLcl95 = siiLcl95 / overall_value,
                 riiUcl95 = siiUcl95 / overall_value)
-
 
 # BELOW IS get_SII_data
 SII_table<-test_data |> 
