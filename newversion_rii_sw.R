@@ -92,11 +92,11 @@ mutate(
 
 #Re-worked confidence intervals from SW-----------------------------------
 # set up data frame for model
-model_df_all_variables <- activity_long %>%
-  group_by(metric_name) %>%
-  dplyr::mutate(cumulative_proportion_pop = cumsum(proportion_pop)) %>%
+model_df_all_variables <- activity_long |>
+  group_by(metric_name) |>
+  dplyr::mutate(cumulative_proportion_pop = cumsum(proportion_pop)) |>
   dplyr::mutate(adj_IMD_decile = case_when(quantile == 1 ~ 0.5*proportion_pop,
-                                           quantile != 1 ~ lag(cumulative_proportion_pop) + 0.5*proportion_pop)) %>%
+                                           quantile != 1 ~ lag(cumulative_proportion_pop) + 0.5*proportion_pop)) |>
   select(metric_name, adj_IMD_decile, total_ratio, population)
 # select(variable, adj_IMD_decile, value, population)
 
@@ -104,7 +104,7 @@ model_df_all_variables <- activity_long %>%
 variables <- levels(as.factor(activity_long$metric_name))
 
 # create table to hold intermediate results of sii calculations
-sii_staging <- data.frame(variable = character(),
+sii_staging <- data.frame(metric_name = character(),
                               pred0 = numeric(),
                               pred0se = numeric(),
                               pred1 = numeric(),
@@ -117,9 +117,9 @@ for (i in variables)
 {
   
   # create subset of med data just for selected variable
-  mod_df <- model_df_all_variables %>%
-    dplyr::filter(metric_name == i) %>%
-    ungroup() %>%
+  mod_df <- model_df_all_variables |>
+    dplyr::filter(metric_name == i) |>
+    ungroup() |>
     select(-metric_name)
   
   # run linear regression of value against IMD weighting for population
@@ -133,14 +133,14 @@ for (i in variables)
                         population = c(NA_real_, NA_real_))
   
   # predict value at either end of IMD spectrum using model
-  mod_results = data.frame(variable = i,
+  mod_results = data.frame(metric_name = i,
                            pred0 = predict(mod, newdata = pred_df)[1],
                            pred0se = predict(mod, se.fit = TRUE, newdata = pred_df)$se.fit[1],
                            pred1 = predict(mod, newdata = pred_df)[2],
                            pred1se = predict(mod, se.fit = TRUE, newdata = pred_df)$se.fit[2])
   
   # store results into sii staging df
-  sii_staging <- sii_staging %>%
+  sii_staging <- sii_staging |>
     bind_rows(mod_results)
   
 }
@@ -164,20 +164,23 @@ sii_results <- sii_staging %>%
 # BELOW IS update_activity_long
 
 test_data <- activity_long %>% 
-  left_join(sii_results, by = 'variable') %>% 
+  left_join(sii_results, by = 'metric_name') %>% 
   dplyr::mutate(rii = sii / overall_value,
                 riiLcl95 = siiLcl95 / overall_value,
                 riiUcl95 = siiUcl95 / overall_value)
 
 
 # BELOW IS get_SII_data
-SII_table<-test_data %>% 
-  group_by (`variable`)%>% 
-  summarise(SII = mean(-`sii`),UCI = mean(-`siiUcl95`),LCI = mean(-`siiLcl95`),
-            RII = mean(-`rii`),UCI_RII = mean(-`riiUcl95`),LCI_RII = mean(-`riiLcl95`),
-            RR=mean(-`rel_range` )) %>%
-  #summarise(Patients = sum(`Number of Patients`)) %>%
-  #summarise(totalIMD = sum(`scoretimespopLSOA`)) %>%
+SII_table<-test_data |> 
+  group_by (`metric_name`)|>
+  summarise(
+    SII = mean(-`sii`),
+    UCI = mean(-`siiUcl95`),
+    LCI = mean(-`siiLcl95`),
+    RII = mean(-`rii`),
+    UCI_RII = mean(-`riiUcl95`),
+    LCI_RII = mean(-`riiLcl95`),
+    RR=mean(-`rel_range` )) |>
   arrange()
 
 
