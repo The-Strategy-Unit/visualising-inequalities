@@ -1,3 +1,4 @@
+
 # Load libraries ----------------------------------------------------------
 library(dplyr)
 library(tidyr)
@@ -78,94 +79,107 @@ activity_long <- activity_type_decile |>
   ungroup() |>
   ############################################### .
   ## Population attributable risk (PAR) ----
-  ############################################### .
-  # Calculation PAR
-  # Formula here: https://pdfs.semanticscholar.org/14e0/c5ba25a4fdc87953771a91ec2f7214b2f00d.pdf
-  # https://fhop.ucsf.edu/sites/fhop.ucsf.edu/files/wysiwyg/pg_apxIIIB.pdf
-  mutate(
-    par_rr = (total_ratio / least_depr_value - 1) * proportion_pop,
-    par = sum(par_rr) / (sum(par_rr) + 1) * 100
-  ) |>
+############################################### .
+# Calculation PAR
+# Formula here: https://pdfs.semanticscholar.org/14e0/c5ba25a4fdc87953771a91ec2f7214b2f00d.pdf
+# https://fhop.ucsf.edu/sites/fhop.ucsf.edu/files/wysiwyg/pg_apxIIIB.pdf
+mutate(
+  par_rr = (total_ratio / least_depr_value - 1) * proportion_pop,
+  par = sum(par_rr) / (sum(par_rr) + 1) * 100
+) |>
   select(-par_rr)
 
 
-############################################### .
-## Slope of index on inequality (SII) ----
-############################################### .
-# The calculations below are those of the linear SII, you will have to amend the
-# model if you wanted to calculate the Poisson SII
-# This code will produce the results of the model, including confidence intervals
-sii_model <- activity_long |>
+# set up data frame for model
+model_df_all_variables <- activity_long |>
   group_by(metric_name) |>
-  mutate(
-    cumulative_pro = cumsum(proportion_pop), # cumulative proportion population for each area
-    relative_rank = case_when(
-      quantile == 1 ~ 0.5 * proportion_pop,
-      quantile != 1 ~ lag(cumulative_pro) + 0.5 * proportion_pop
-    ),
-    sqr_proportion_pop = sqrt(proportion_pop), # square root of the proportion of the population in each SIMD
-    relrank_sqr_proppop = relative_rank * sqr_proportion_pop,
-    value_sqr_proppop = sqr_proportion_pop * total_ratio
-  ) |> # value based on population weights
-  nest() |> # creating one column called data with all the variables not in the grouping
-  # Calculating linear regression for all the groups, then formatting the results
-  # and calculating the confidence intervals
-  mutate(
-    model = map(data, ~ lm(value_sqr_proppop ~ sqr_proportion_pop + relrank_sqr_proppop + 0, data = .)),
-    # extracting sii from model, a bit fiddly but it works
-    sii = -1 * as.numeric(map(map(model, "coefficients"), "relrank_sqr_proppop")),
-    cis = map(model, confint_tidy)
-  ) |> # calculating confidence intervals
-  ungroup() |>
-  unnest(cis) |>
-  # selecting only even row numbers which are the ones that have the sii cis
-  filter(row_number() %% 2 == 0) |>
-  mutate(
-    lowci_sii = -1 * conf.high, # fixing interpretation
-    upci_sii = -1 * conf.low
-  ) |>
-  select(
-    -conf.low,
-    -conf.high
-  ) # non-needed variables
+  dplyr::mutate(cumulative_proportion_pop = cumsum(proportion_pop)) |>
+  dplyr::mutate(adj_IMD_decile = case_when(quantile == 1 ~ 0.5*proportion_pop,
+                                           quantile != 1 ~ lag(cumulative_proportion_pop) + 0.5*proportion_pop)) |>
+  select(metric_name, adj_IMD_decile, total_ratio, population)
 
 
-# Merging sii results with main data set
-activity <- activity_long |>
-  left_join(sii_model, by = "metric_name")
+# create variable to loop over
+variables <- levels(as.factor(activity_long$metric_name))
+
+# create table to hold intermediate results of sii calculations
+sii_staging <- data.frame(metric_name = character(),
+                              pred0 = numeric(),
+                              pred0se = numeric(),
+                              pred1 = numeric(),
+                              pred1se = numeric())
 
 
-############################################### .
-## Relative index of inequality (RII) ----
-############################################### .
-# This is the calculation of the linear RII which is based on the SII values,
-# so that section needs to be run before this one.
-rii_index <- activity |>
-  mutate(
-    rii = sii / overall_value,
-    lowci_rii = lowci_sii / overall_value,
-    upci_rii = upci_sii / overall_value,
-    # Transforming RII into %. This way is interpreted as "most deprived areas are
-    # xx% above the average" For example: Cancer mortality rate is around 55% higher
-    # in deprived areas relative to the mean rate in the population
-    rii_int = rii * 0.5 * 100,
-    lowci_rii_int = lowci_rii * 0.5 * 100,
-    upci_rii_int = upci_rii * 0.5 * 100
-  )
+# calculate intermediate sii results for each variable in activity_long
+for (i in variables)
+  
+{
+  
+  # create subset of med data just for selected variable
+  mod_df <- model_df_all_variables |>
+    dplyr::filter(metric_name == i) |>
+    ungroup() |>
+    select(-metric_name)
+  
+  # run linear regression of total_ratio(value) against IMD weighting for population
+  mod <- lm(total_ratio ~ adj_IMD_decile,
+            weights = population,
+            data = mod_df)
+  
+  # create dataframe to run predictions
+  pred_df <- data.frame(adj_IMD_decile = c(0, 1),
+                        total_ratio = c(NA_real_, NA_real_),
+                        population = c(NA_real_, NA_real_))
+  
+  # predict value at either end of IMD spectrum using model
+  mod_results = data.frame(metric_name = i,
+                           pred0 = predict(mod, newdata = pred_df)[1],
+                           pred0se = predict(mod, se.fit = TRUE, newdata = pred_df)$se.fit[1],
+                           pred1 = predict(mod, newdata = pred_df)[2],
+                           pred1se = predict(mod, se.fit = TRUE, newdata = pred_df)$se.fit[2])
+  
+  # store results into sii staging df
+  sii_staging <- sii_staging |>
+    bind_rows(mod_results)
+  
+}
 
 
 
-sii_table <- rii_index |>
-  group_by(metric_name) |>
+#set the confidence interval for sii and rii
+#change this as required
+confLevel <- 0.95
+
+
+# calculate sii and CIs
+# note se of difference of two variables is the square root of the summed 
+#squares of the se's of these variables
+sii_results <- sii_staging |> 
+  dplyr::mutate(sii = pred0 - pred1,
+                siiSe = (pred0se ^ 2 + pred1se ^ 2) ^ 0.5) |> 
+  dplyr::mutate(siiLcl95 = sii + qnorm(p = (1-confLevel)/2, lower.tail = TRUE)*siiSe,
+                siiUcl95 = sii + qnorm(p = (1+confLevel)/2, lower.tail = TRUE)*siiSe) |> 
+  select(-siiSe, -pred0, - pred1, -pred0se, -pred1se) 
+
+# join to activity data
+test_data <- activity_long |> 
+  left_join(sii_results, by = 'metric_name') |> 
+  dplyr::mutate(rii = sii / overall_value,
+                riiLcl95 = siiLcl95 / overall_value,
+                riiUcl95 = siiUcl95 / overall_value)
+
+# Put the data into a table for use or export
+sii_table<-test_data |> 
+  group_by (`metric_name`)|>
   summarise(
-    SII = mean(-sii),
-    UCI = mean(-upci_sii),
-    LCI = mean(-lowci_sii),
-    RII = mean(-rii),
-    UCI_RII = mean(-upci_rii),
-    LCI_RII = mean(-lowci_rii),
-    RR = mean(-rel_range)
-  ) |>
+    SII = mean(-`sii`),
+    UCI = mean(-`siiUcl95`),
+    LCI = mean(-`siiLcl95`),
+    RII = mean(-`rii`),
+    UCI_RII = mean(-`riiUcl95`),
+    LCI_RII = mean(-`riiLcl95`),
+    RR=mean(-`rel_range` )) |>
   arrange()
 
-sii_table
+# Save out the results to a csv
+# write.csv(sii_table,"data/sii_table.csv")
