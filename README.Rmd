@@ -38,7 +38,7 @@ The second section of code to be published will be the calculations that assign 
 
 The tool is available here: https://connect.strategyunitwm.nhs.uk/content/b05b649b-511d-4921-9069-2a7a62d694dd/
 
-The accompanying report including methodology is available here: https://www.bhf.org.uk/-/media/files/publications/research/bhf_visualising-socio-economic-inequalities-in-chd-progression-and-pathways_sept2022.pdf?rev=e43c10defd7a4579a2795887d6728b37&hash=C3933086783DC0E35F4341FEADD087DA
+The accompanying report including methodology and a recording of a webinar about the tool is available here: https://www.bhf.org.uk/-/media/files/publications/research/bhf_visualising-socio-economic-inequalities-in-chd-progression-and-pathways_sept2022.pdf?rev=e43c10defd7a4579a2795887d6728b37&hash=C3933086783DC0E35F4341FEADD087DA
 
 Here is an example of the visualisation used in the tool to display the data generated using these calculations
 
