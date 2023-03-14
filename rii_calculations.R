@@ -12,7 +12,7 @@ library(glue)
 # This data has a row for each IMD decile. The first column is the IMD decile
 # number, the second column is the total GP list size for that decile.
 # Each of the other columns is the total activity for that metric and decile.
-# In this example there are 33 metrics.
+# In this example there are 32 metrics.
 #
 # This test dataset has been created using a random number generator with data
 # items in a pattern, range and with an average similar to the original dataset.
@@ -182,4 +182,5 @@ sii_table<-test_data |>
   arrange()
 
 # Save out the results to a csv
-write.csv(sii_table,"data/sii_table.csv")
+#write.csv(sii_table,"data/sii_table.csv")
+
