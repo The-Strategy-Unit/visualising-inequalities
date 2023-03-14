@@ -25,7 +25,7 @@ activity_by_type_decile_stg1_testdata.rds
 This data has a row for each IMD decile. The first column is the IMD
 decile number, the second column is the total GP list size for that
 decile. Each of the other columns is the total activity for that metric
-and decile. In this example there are 33 metrics.
+and decile. In this example there are 32 metrics.
 
 This test dataset has been created using a random number generator with
 data items in a range similar to the original dataset.
