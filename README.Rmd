@@ -33,9 +33,7 @@ The code rii_calculations.R can be used to calculate the RII with lower and uppe
 
 The input data for this stage of the process is the rds activity_by_type_decile_stg1_testdata.rds
 
-This data has a row for each IMD decile. The first column is the IMD decile
-number, the second column is the total GP list size for that decile.
-Each of the other columns is the total activity for that metric and decile.
+This data has a row for each IMD decile. The first column is the IMD decile number, the second column is the total GP list size for that decile. Each of the other columns is the total activity for that metric and decile.
 In this example there are 32 metrics.
 
 This test dataset has been created using a random number generator with data
@@ -53,7 +51,7 @@ The three input files are
       
 The file here is from January 2020, used in this project as the GP practice list sizes timeframe is consistent with much of the data used for the metrics and is also pre-pandemic. The file contains practice list sizes split by LSOA. The latest version of this file can be obtained from :
   
-  https://digital.nhs.uk/data-and-information/publications/statistical/patients-registered-at-a-gp-practice/april-2022
+https://digital.nhs.uk/data-and-information/publications/statistical/patients-registered-at-a-gp-practice/april-2022
 
 2) imd_2019.xlsx
 
