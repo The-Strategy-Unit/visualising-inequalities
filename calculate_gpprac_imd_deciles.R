@@ -1,8 +1,9 @@
 library(readxl)
 library(tidyr)
 library(tidyverse)
+library(here)
 
-#Get the IMD Deciles for each GP Practice
+# Load data files
 
 gp_patients_by_lsoa <- read_excel(here::here("data", "patients_by_lsoa_to_gp.xlsx"))
 
@@ -13,6 +14,9 @@ practice_to_icb_lookup <- read_excel(here::here("data", "gp-reg-pat-prac-map-jul
 
 # appends LSOA IMD score to GPpatients_by_LSOA
 gp_patients_by_lsoa <- gp_patients_by_lsoa %>%
+  left_join(imd_2019 %>% 
+              select(`LSOA code (2011)`, 
+                     `Index of Multiple Deprivation (IMD) Score`),
     by = c("LSOA_CODE" = "LSOA code (2011)")
   )
 
