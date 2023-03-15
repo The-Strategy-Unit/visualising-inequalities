@@ -64,7 +64,9 @@ obtained from :
 2)  imd_2019.xlsx
 
 This file contains the IMD 2019 scores, ranks and deciles for each 2011
-LSOA
+LSOA and can be obtained from:
+
+<https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/845345/File_7_-_All_IoD2019_Scores__Ranks__Deciles_and_Population_Denominators_3.csv/preview>
 
 3)  gp-reg-pat-prac-map-jul22.xlsx
 
