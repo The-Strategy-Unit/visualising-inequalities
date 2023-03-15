@@ -28,7 +28,8 @@ gp_patients_by_lsoa <- gp_patients_by_lsoa %>%
 patientweighted_practice_imd <- gp_patients_by_lsoa %>%
   filter(!is.na(scoretimespopLSOA)) %>%
   group_by(`PRACTICE_CODE`) %>%
-  summarise(totalIMD = sum(`scoretimespopLSOA`), Patients = sum(`Number of Patients`)) %>%
+  summarise(totalIMD = sum(`scoretimespopLSOA`), 
+            Patients = sum(`Number of Patients`)) %>%
   arrange() %>%
   # then calculates the average IMD (total IMD score/total Patients)
   mutate(averageIMD = `totalIMD` / `Patients`) %>%
