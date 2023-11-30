@@ -74,6 +74,10 @@ This file maps each GP practice to a July 2022 ICB
 
 The output of this code is a patient weighted GP practice IMD.
 
+This code makes use of regular expressions. More details about them can be found in this NHS-R blog here:
+
+https://nhsrcommunity.com/code-snippets-regular-expressions/
+
 **Strategy Unit / British Heart Foundation (BHF) project:**
 
 The tool is available here:
